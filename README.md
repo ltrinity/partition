@@ -1,1 +1,2 @@
-# partition
+# Partition Function
+For single RNA with simple energy model, for now...
