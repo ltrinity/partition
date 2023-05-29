@@ -103,6 +103,20 @@ void computePartitionFunction(const string& sequence) {
     cout << sequence << endl;
     traceback(V, sequence, n-2, n-1, string(n, '.'), true);
 
+    // Initialize WM1  matrix
+    vector<vector<int>> WM1(n, vector<int>(n, 0));
+
+    //Compute WM1 matrix
+    for(int i =0; i < n -1;i++){
+        for (int j = i+1; j < n ; j++) {
+            WM1[i][j] += WM1[i][j-1] + V[i][j];
+        }
+    }
+
+    cout << "WM1 Matrix:" << endl;
+    printMatrix(WM1, sequence);
+
+
     // Initialize W matrix
     vector<vector<int>> W(n, vector<int>(n, 0));
     for (int i = 0; i < n; i++) {
