@@ -34,52 +34,6 @@ std::pair<bool, double> canPair(char base1, char base2) {
     }
 }
 
-// traceback method
-void computeTrace(const string& sequence, int n, int minLoop, vector<vector<double>> V, vector<vector<double>> WM1) {
-    // iterate through each column and row
-    for (int j = minLoop + 1; j < n; j++) {
-        for (int i = j - minLoop - 1; i >= 0; i--) {
-            // check for pair
-            auto hairpin = canPair(sequence[i], sequence[j]);
-            bool hairpin_possible = hairpin.first;
-            if (hairpin_possible) {
-                string db = string(n, '.');
-                db[i] = '(';
-                db[j] = ')';
-                //stacked pair
-                auto stackedPair = canPair(sequence[i+1], sequence[j-1]);
-                bool stack_possible = stackedPair.first;
-                double stack_energy = stackedPair.second;
-                if(stack_possible){
-                    cout << db << " " << V[i][j]-V[i+1][j-1]-stack_energy  << endl;
-                    db[i+1] = '(';
-                    db[j-1] = ')';
-                    cout << db << " " << V[i][j]-V[i+1][j-1]-0.2 << endl;
-                } else {
-                    cout << db << " " << V[i][j] << endl;
-                }
-                //internal bulge
-                for(int m = j-2; m > 0; m--){
-                    int k = i + 1;
-                    int l = m;
-                    while (l <= j-1 && k < l){
-                        auto internalPair = canPair(sequence[k], sequence[l]);
-                        bool internal_possible = internalPair.first;
-                        if(internal_possible){
-                            db[k] = '(';
-                            db[l] = ')';
-                            cout << db << " " << V[i][j] << endl;
-                        }
-                        k++;
-                        l++;
-                    }
-                }
-                //multiloop
-            }
-        }
-    }
-}
-
 // Compute the pf using simple energy model
 void computePartitionFunction(const string& sequence, int n, int minLoop) {
 
@@ -87,6 +41,13 @@ void computePartitionFunction(const string& sequence, int n, int minLoop) {
     vector<vector<double>> V(n, vector<double>(n, 0.0));
     // Initialize WM1  matrix
     vector<vector<double>> WM1(n, vector<double>(n, 0.0));
+    // print the sequence
+    cout << sequence << endl;
+    // track the energy of all structures and the count
+    // empty structure has energy = 1 from the base case
+    float energy = 1;
+    int count = 1;
+    cout << string(n, '.') << " 1" << endl;
 
     // Compute V matrix
     for (int j = minLoop + 1; j < n; j++) {
@@ -95,17 +56,29 @@ void computePartitionFunction(const string& sequence, int n, int minLoop) {
             bool hairpin_possible = hairpin.first;
             int hairpin_energy = hairpin.second;
             if (hairpin_possible) {
-                //hairpin and stack
+                string db = string(n, '.');
+                db[i] = '(';
+                db[j] = ')';
+                // hairpin and stack
                 int hairpinLoopSize = j-i-1;
                 V[i][j] = 0.1*hairpinLoopSize + hairpin_energy;
-                //stacked pair
+                cout << db << " " << V[i][j] << endl;
+                energy += V[i][j];
+                count += 1;
+                // stacked pair
                 auto stackedPair = canPair(sequence[i+1], sequence[j-1]);
                 bool stack_possible = stackedPair.first;
                 int stackedPairEnergy = stackedPair.second;
                 if(stack_possible){
-                    V[i][j] += V[i+1][j-1] + stackedPairEnergy;
+                    float stackSumEnergy = V[i+1][j-1] + stackedPairEnergy;
+                    V[i][j] += stackSumEnergy;
+                    db[i+1] = '(';
+                    db[j-1] = ')';
+                    cout << db << " " << stackSumEnergy << endl;
+                    energy += stackSumEnergy;
+                    count += 1;
                 }
-                //internal bulge
+                // internal bulge
                 for(int m = j-2; m > 0; m--){
                     int k = i + 1;
                     int l = m;
@@ -114,37 +87,41 @@ void computePartitionFunction(const string& sequence, int n, int minLoop) {
                         bool internal_possible = internalPair.first;
                         int internalEnergy = internalPair.second;
                         if(internal_possible){
-                            //unpaired count in between the pairs
+                            // unpaired count in between the pairs
                             int internalLoopSize = (k-i-1) + (j-l-1);
-                            V[i][j] += V[k][l] + internalEnergy + internalLoopSize*0.1;
+                            float internalSumEnergy = V[k][l] + internalEnergy + internalLoopSize*0.1;
+                            V[i][j] += internalSumEnergy;
+                            db[k] = '(';
+                            db[l] = ')';
+                            cout << db << " " << internalSumEnergy << endl;
+                            energy += internalSumEnergy;
+                            count += 1;
                         }
                         k++;
                         l++;
                     }
                 }
-
-                //multiloop
+                // multiloop
                 WM1[i][j] += WM1[i][j-1] + V[i][j];
             }
         }
     }
 
+    cout << "Energy: " << energy << endl;
+    cout  << "Count: " << count << endl;
+
     cout << "V" << endl;
     printMatrix(V, sequence);
 
-    // Print the structures in V from traceback
-    cout << sequence << endl;
-    computeTrace(sequence, n, minLoop, V, WM1);
-
-    //cout << "WM1 Matrix:" << endl;
-    //printMatrix(WM1, sequence);
+    // cout << "WM1 Matrix:" << endl;
+    // printMatrix(WM1, sequence);
 
     // Initialize W matrix
     vector<double>  W(n, 0.0);
-    //base case
+    // base case
     W[0] = 1.0;
 
-    //Compute W matrix
+    // Compute W matrix
     for (int j = 1; j < n ; j++) {
         W[j] += W[j-1];
         for (int r = 0; r < j; r++){
@@ -152,7 +129,7 @@ void computePartitionFunction(const string& sequence, int n, int minLoop) {
         }
     }
 
-    //print W
+    // print W
     cout << "W" <<endl;
     for (int i = 0; i < sequence.length(); i++) {
         cout << "\t" << W[i] ;
@@ -161,14 +138,14 @@ void computePartitionFunction(const string& sequence, int n, int minLoop) {
 }
 
 int main() {
-    //basic hairpin
+    // basic hairpin
     //string sequence = "CAAAG";
-    //basic stack
+    // basic stack
     //string sequence = "CCAAAGG";
-    //basic internal
+    // basic internal
     string sequence = "CCAAAGAG";
     int n = sequence.length();
-    //minloopsize
+    // minloopsize
     int minLoop = 3;
     computePartitionFunction(sequence, n, minLoop);
     return 0;
