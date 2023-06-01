@@ -75,6 +75,8 @@ void computePartitionFunction(const string& sequence, int n, int minLoop) {
                     db[i+1] = '(';
                     db[j-1] = ')';
                     cout << db << " " << stackSumEnergy << endl;
+                    db[i+1] = '.';
+                    db[j-1] = '.';
                     energy += stackSumEnergy;
                     count += 1;
                 }
@@ -82,7 +84,7 @@ void computePartitionFunction(const string& sequence, int n, int minLoop) {
                 for(int m = j-2; m > 0; m--){
                     int k = i + 1;
                     int l = m;
-                    while (l <= j-1 && k < l){
+                    while (l <= j-1 && k < l-minLoop){
                         auto internalPair = canPair(sequence[k], sequence[l]);
                         bool internal_possible = internalPair.first;
                         int internalEnergy = internalPair.second;
@@ -94,6 +96,8 @@ void computePartitionFunction(const string& sequence, int n, int minLoop) {
                             db[k] = '(';
                             db[l] = ')';
                             cout << db << " " << internalSumEnergy << endl;
+                            db[k] = '.';
+                            db[l] = '.';
                             energy += internalSumEnergy;
                             count += 1;
                         }
@@ -143,7 +147,7 @@ int main() {
     // basic stack
     //string sequence = "CCAAAGG";
     // basic internal
-    string sequence = "CCAAAGAG";
+    string sequence = "CCCAAGAGG";
     int n = sequence.length();
     // minloopsize
     int minLoop = 3;
