@@ -40,24 +40,35 @@ void computeTrace(const string& sequence, int n, int minLoop, vector<vector<doub
     for (int j = minLoop + 1; j < n; j++) {
         for (int i = j - minLoop - 1; i >= 0; i--) {
             // check for pair
-            auto result = canPair(sequence[i], sequence[j]);
-            bool pair_possible = result.first;
-            if (pair_possible) {
+            auto hairpin = canPair(sequence[i], sequence[j]);
+            bool hairpin_possible = hairpin.first;
+            if (hairpin_possible) {
                 string db = string(n, '.');
                 db[i] = '(';
                 db[j] = ')';
-                cout << db << endl;
+                //stacked pair
+                auto stackedPair = canPair(sequence[i+1], sequence[j-1]);
+                bool stack_possible = stackedPair.first;
+                double stack_energy = stackedPair.second;
+                if(stack_possible){
+                    cout << db << " " << V[i][j]-V[i+1][j-1]-stack_energy  << endl;
+                    db[i+1] = '(';
+                    db[j-1] = ')';
+                    cout << db << " " << V[i][j]-V[i+1][j-1]-0.2 << endl;
+                } else {
+                    cout << db << " " << V[i][j] << endl;
+                }
                 //internal bulge
                 for(int m = j-2; m > 0; m--){
                     int k = i + 1;
                     int l = m;
                     while (l <= j-1 && k < l){
-                        auto result2 = canPair(sequence[k], sequence[l]);
-                        bool pair_possible2 = result2.first;
-                        if(pair_possible2){
+                        auto internalPair = canPair(sequence[k], sequence[l]);
+                        bool internal_possible = internalPair.first;
+                        if(internal_possible){
                             db[k] = '(';
                             db[l] = ')';
-                            cout << db << endl;
+                            cout << db << " " << V[i][j] << endl;
                         }
                         k++;
                         l++;
@@ -80,24 +91,32 @@ void computePartitionFunction(const string& sequence, int n, int minLoop) {
     // Compute V matrix
     for (int j = minLoop + 1; j < n; j++) {
         for (int i = j - minLoop - 1; i >= 0; i--) {
-            auto result = canPair(sequence[i], sequence[j]);
-            bool pair_possible = result.first;
-            int pair_energy = result.second;
-            if (pair_possible) {
+            auto hairpin = canPair(sequence[i], sequence[j]);
+            bool hairpin_possible = hairpin.first;
+            int hairpin_energy = hairpin.second;
+            if (hairpin_possible) {
                 //hairpin and stack
                 int hairpinLoopSize = j-i-1;
-                int stackedPairEnergy = V[i + 1][j - 1];
-                V[i][j] = 0.1*hairpinLoopSize + pair_energy + stackedPairEnergy;
-                
+                V[i][j] = 0.1*hairpinLoopSize + hairpin_energy;
+                //stacked pair
+                auto stackedPair = canPair(sequence[i+1], sequence[j-1]);
+                bool stack_possible = stackedPair.first;
+                int stackedPairEnergy = stackedPair.second;
+                if(stack_possible){
+                    V[i][j] += V[i+1][j-1] + stackedPairEnergy;
+                }
                 //internal bulge
                 for(int m = j-2; m > 0; m--){
                     int k = i + 1;
                     int l = m;
                     while (l <= j-1 && k < l){
-                        if(V[k][l] > 0){
+                        auto internalPair = canPair(sequence[k], sequence[l]);
+                        bool internal_possible = internalPair.first;
+                        int internalEnergy = internalPair.second;
+                        if(internal_possible){
                             //unpaired count in between the pairs
                             int internalLoopSize = (k-i-1) + (j-l-1);
-                            V[i][j] += V[k][l] + internalLoopSize*0.1;
+                            V[i][j] += V[k][l] + internalEnergy + internalLoopSize*0.1;
                         }
                         k++;
                         l++;
@@ -143,11 +162,11 @@ void computePartitionFunction(const string& sequence, int n, int minLoop) {
 
 int main() {
     //basic hairpin
-    string sequence = "CAAAG";
+    //string sequence = "CAAAG";
     //basic stack
     //string sequence = "CCAAAGG";
     //basic internal
-    //string sequence = "CCAAAGAG";
+    string sequence = "CCAAAGAG";
     int n = sequence.length();
     //minloopsize
     int minLoop = 3;
