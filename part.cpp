@@ -4,16 +4,15 @@
 
 using namespace std;
 
-//matrix printer
+// matrix printer function
+// for future work, print 1d vector as a matrix
 void printMatrix(const vector<vector<double>>& M, const string& sequence){
-    //print the sequence
-    cout << "Input Sequence: " << sequence << endl;
-    cout  << "\t";
+    // print the sequence
     for (int i = 0; i < sequence.length(); i++) {
-        cout << sequence[i] << "\t";
+        cout << "\t" << sequence[i];
     }
     cout << "\n";
-    //print the matrix
+    // print the matrix
     for (int i = 0; i < sequence.length(); i++) {
         cout << sequence[i] << "\t" ;
         for (int j = 0; j < sequence.length(); j++) {
@@ -35,37 +34,43 @@ std::pair<bool, double> canPair(char base1, char base2) {
     }
 }
 
-//recursive traceback method
-void traceback(const vector<vector<double>>& M, const string& sequence, int i, int j, string dotBracket, bool leftTraceAllowed) {
-    //empty, also not possible in V or not allowed
-    if (i == -1 or j ==-1) {
-        return;
-    }
-    // i unpaired
-    traceback(M, sequence, i-1, j, dotBracket, false);
-
-    // j unpaired with unambiguous trace back
-    //avoids left up and up left reaching same cell multiple ways
-    if(leftTraceAllowed){
-        traceback(M, sequence, i, j-1, dotBracket, true);
-    }
-
-    //paired
-    if (M[i][j] > 0) {
-        //for visualizing structures
-        string newDotBracket = dotBracket;
-        newDotBracket[i] = '(';
-        newDotBracket[j] = ')';
-        cout << newDotBracket << endl;
-        traceback(M, sequence, i-1, j-1, newDotBracket, true);
+// traceback method
+void computeTrace(const string& sequence, int n, int minLoop, vector<vector<double>> V, vector<vector<double>> WM1) {
+    // iterate through each column and row
+    for (int j = minLoop + 1; j < n; j++) {
+        for (int i = j - minLoop - 1; i >= 0; i--) {
+            // check for pair
+            auto result = canPair(sequence[i], sequence[j]);
+            bool pair_possible = result.first;
+            if (pair_possible) {
+                string db = string(n, '.');
+                db[i] = '(';
+                db[j] = ')';
+                cout << db << endl;
+                //internal bulge
+                for(int m = j-2; m > 0; m--){
+                    int k = i + 1;
+                    int l = m;
+                    while (l <= j-1 && k < l){
+                        auto result2 = canPair(sequence[k], sequence[l]);
+                        bool pair_possible2 = result2.first;
+                        if(pair_possible2){
+                            db[k] = '(';
+                            db[l] = ')';
+                            cout << db << endl;
+                        }
+                        k++;
+                        l++;
+                    }
+                }
+                //multiloop
+            }
+        }
     }
 }
 
 // Compute the pf using simple energy model
-void computePartitionFunction(const string& sequence) {
-
-    int n = sequence.length();
-    int minHairpinUnpaired = 3;
+void computePartitionFunction(const string& sequence, int n, int minLoop) {
 
     // Initialize V matrix
     vector<vector<double>> V(n, vector<double>(n, 0.0));
@@ -73,8 +78,8 @@ void computePartitionFunction(const string& sequence) {
     vector<vector<double>> WM1(n, vector<double>(n, 0.0));
 
     // Compute V matrix
-    for (int j = minHairpinUnpaired + 1; j < n; j++) {
-        for (int i = j - minHairpinUnpaired - 1; i >= 0; i--) {
+    for (int j = minLoop + 1; j < n; j++) {
+        for (int i = j - minLoop - 1; i >= 0; i--) {
             auto result = canPair(sequence[i], sequence[j]);
             bool pair_possible = result.first;
             int pair_energy = result.second;
@@ -105,39 +110,35 @@ void computePartitionFunction(const string& sequence) {
         }
     }
 
-    cout << "V Matrix:" << endl;
+    cout << "V" << endl;
     printMatrix(V, sequence);
 
     // Print the structures in V from traceback
     cout << sequence << endl;
-    traceback(V, sequence, n-2, n-1, string(n, '.'), true);
-
-    //Compute WM1 matrix
-    //for(int i =0; i < n -1;i++){
-    //    for (int j = i+1; j < n ; j++) {
-    //        WM1[i][j] += WM1[i][j-1] + V[i][j];
-    //    }
-    //}
+    computeTrace(sequence, n, minLoop, V, WM1);
 
     //cout << "WM1 Matrix:" << endl;
     //printMatrix(WM1, sequence);
 
-
     // Initialize W matrix
-    vector<vector<double>> W(n, vector<double>(n, 0.0));
-    for (int i = 0; i < n; i++) {
-        W[i][i] = 1.0;
-    }
+    vector<double>  W(n, 0.0);
+    //base case
+    W[0] = 1.0;
 
     //Compute W matrix
     for (int j = 1; j < n ; j++) {
-        W[0][j] += W[0][j-1];
+        W[j] += W[j-1];
         for (int r = 0; r < j; r++){
-            W[0][j] += max(W[0][r-1],1.0)*V[r][j];
+            W[j] += max(W[r-1],1.0)*V[r][j];
         }
     }
-    cout << "W Matrix:" << endl;
-    printMatrix(W, sequence);
+
+    //print W
+    cout << "W" <<endl;
+    for (int i = 0; i < sequence.length(); i++) {
+        cout << "\t" << W[i] ;
+    }
+    cout << endl;
 }
 
 int main() {
@@ -147,7 +148,9 @@ int main() {
     //string sequence = "CCAAAGG";
     //basic internal
     //string sequence = "CCAAAGAG";
-    computePartitionFunction(sequence);
-
+    int n = sequence.length();
+    //minloopsize
+    int minLoop = 3;
+    computePartitionFunction(sequence, n, minLoop);
     return 0;
 }
