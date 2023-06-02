@@ -41,6 +41,10 @@ void computePartitionFunction(const string& sequence, int n, int minLoop) {
     vector<vector<double>> V(n, vector<double>(n, 0.0));
     // Initialize WM1  matrix
     vector<vector<double>> WM1(n, vector<double>(n, 0.0));
+    // Initialize WM  matrix
+    vector<vector<double>> WM(n, vector<double>(n, 0.0));
+    // Initialize VM  matrix
+    vector<vector<double>> VM(n, vector<double>(n, 0.0));
     // print the sequence
     cout << sequence << endl;
     // track the energy of all structures and the count
@@ -106,7 +110,16 @@ void computePartitionFunction(const string& sequence, int n, int minLoop) {
                     }
                 }
                 // multiloop
-                WM1[i][j] += WM1[i][j-1] + V[i][j];
+                WM1[i][j] += (V[i][j] + 0.5 + WM1[i][j-1] + 0.2);
+                WM[i][j] += WM[i][j-1] + 0.2;
+                for (int r = 0; r < j-1; r++){
+                        float terminalBranchEnergy = (0.2*(r-i)) + V[r][j] + 0.5;
+                        float intermediateBranchEnergy = WM[i][r] + V[r+1][j] + 0.5;
+                        WM[i][j] += (terminalBranchEnergy + intermediateBranchEnergy);
+                }
+                for (int h = i+2; h <= j-1; h++){
+                        VM[i][j] += WM[i+1][h-1] + WM1[h][j-1] + 0.5 + 1;
+                }
             }
         }
     }
@@ -117,8 +130,14 @@ void computePartitionFunction(const string& sequence, int n, int minLoop) {
     cout << "V" << endl;
     printMatrix(V, sequence);
 
-    // cout << "WM1 Matrix:" << endl;
-    // printMatrix(WM1, sequence);
+    cout << "WM1" << endl;
+    printMatrix(WM1, sequence);
+
+    cout << "WM" << endl;
+    printMatrix(WM, sequence);
+
+    cout << "VM" << endl;
+    printMatrix(VM, sequence);
 
     // Initialize W matrix
     vector<double>  W(n, 0.0);
@@ -147,7 +166,7 @@ int main() {
     // basic stack
     //string sequence = "CCAAAGG";
     // basic internal
-    string sequence = "CCCAAGAGG";
+    string sequence = "CCAAAGCAAAGG";
     int n = sequence.length();
     // minloopsize
     int minLoop = 3;
