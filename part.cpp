@@ -110,16 +110,42 @@ void computePartitionFunction(const string& sequence, int n, int minLoop) {
                     }
                 }
                 // multiloop
-                WM1[i][j] += (V[i][j] + 0.5 + WM1[i][j-1] + 0.2);
-                WM[i][j] += WM[i][j-1] + 0.2;
-                for (int r = 0; r < j-1; r++){
-                        float terminalBranchEnergy = (0.2*(r-i)) + V[r][j] + 0.5;
-                        float intermediateBranchEnergy = WM[i][r] + V[r+1][j] + 0.5;
-                        WM[i][j] += (terminalBranchEnergy + intermediateBranchEnergy);
+                if(V[i][j]<0){
+                    WM1[i][j] += (V[i][j] + 0.5);
+                }
+                if(WM1[i][j-1]<0){
+                    WM1[i][j] += (WM1[i][j-1] + 0.2);
+                }
+                if(WM[i][j-1]<0){
+                    WM[i][j] += (WM[i][j-1] + 0.2);
+                }         
+                for (int r = i; r < j-1; r++){
+                    //terminal branch
+                    if(V[r][j] < 0){
+                        WM[i][j] += (0.2*(r-i)) + V[r][j] + 0.5;
+                    }
+                    //intermediate branch
+                    if(WM[i][r] + V[r+1][j] < 0){
+                        WM[i][j] += WM[i][r] + V[r+1][j] + 0.5;
+                    }
                 }
                 for (int h = i+2; h <= j-1; h++){
+                    if(WM[i+1][h-1] < 0 && WM1[h][j-1] < 0){
                         VM[i][j] += WM[i+1][h-1] + WM1[h][j-1] + 0.5 + 1;
+                        V[i][j] += VM[i][j];
+                        db[h] = '(';
+                        //db[l] = ')';
+                        cout << db << " " << WM[i+1][h-1] + WM1[h][j-1] + 0.5 + 1 << endl;
+                        cout << "wm: " << WM[i+1][h-1] << endl; 
+                        //db[k] = '.';
+                        //db[l] = '.';
+                        //energy += internalSumEnergy;
+                        //count += 1;
+                        //cout << "wm: " << WM[i+1][h-1] << " wm1: " << WM1[h][j-1] << endl; 
+                        cout << "multi energy: " << VM[i][j] << endl; 
+                    }
                 }
+
             }
         }
     }
@@ -127,17 +153,17 @@ void computePartitionFunction(const string& sequence, int n, int minLoop) {
     cout << "Energy: " << energy << endl;
     cout  << "Count: " << count << endl;
 
-    cout << "V" << endl;
-    printMatrix(V, sequence);
+    //cout << "V" << endl;
+    //printMatrix(V, sequence);
 
-    cout << "WM1" << endl;
-    printMatrix(WM1, sequence);
+    //cout << "WM1" << endl;
+    //printMatrix(WM1, sequence);
 
-    cout << "WM" << endl;
-    printMatrix(WM, sequence);
+    //cout << "WM" << endl;
+    //printMatrix(WM, sequence);
 
-    cout << "VM" << endl;
-    printMatrix(VM, sequence);
+    //cout << "VM" << endl;
+    //printMatrix(VM, sequence);
 
     // Initialize W matrix
     vector<double>  W(n, 0.0);
@@ -166,7 +192,7 @@ int main() {
     // basic stack
     //string sequence = "CCAAAGG";
     // basic internal
-    string sequence = "CCAAAGCAAAGG";
+    string sequence = "CCAAAGAAACAAAGG";
     int n = sequence.length();
     // minloopsize
     int minLoop = 3;
