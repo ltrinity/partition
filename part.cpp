@@ -90,7 +90,7 @@ void computePartitionFunction(const string& sequence, int n, int minLoop) {
             bool hairpin_possible = hairpin.first;
             int hairpin_energy = hairpin.second;
             if (hairpin_possible) {
-                // hairpin and stack
+                // hairpin
                 int hairpinLoopSize = j-i-1;
                 V[i][j] = unpairedCost*hairpinLoopSize + hairpin_energy;
                 // stacked pair
@@ -120,25 +120,36 @@ void computePartitionFunction(const string& sequence, int n, int minLoop) {
                     }
                 }
                 // multiloop
+                // remove these checks when exponentiating properly
+
+                // terminal (rightmost) branch ij possible
                 if(V[i][j]<0){
                     WM1[i][j] += (V[i][j] + bpMLCost);
                 }
+                
+                // move to terminal branch i,j-1
                 if(WM1[i][j-1]<0){
                     WM1[i][j] += (WM1[i][j-1] + unpairedMLCost);
                 }
+
+                // unpaired base between branches
                 if(WM[i][j-1]<0){
                     WM[i][j] += (WM[i][j-1] + unpairedMLCost);
-                }         
+                }
+
+                // option for additional branch 
                 for (int r = i; r < j-1; r++){
-                    //terminal branch
+                    //initial branch
                     if(V[r][j] < 0){
                         WM[i][j] += ((unpairedMLCost*(r-i)) + V[r][j] + bpMLCost);
                     }
-                    //intermediate branch
+                    // intermediate branch
                     if(WM[i][r] + V[r+1][j] < 0){
                         WM[i][j] += (WM[i][r] + V[r+1][j] + bpMLCost);
                     }
                 }
+
+                // at least two branches required for multiloop
                 for (int h = i+2; h <= j-1; h++){
                     if(WM[i+1][h-1] < 0 && WM1[h][j-1] < 0){
                         VM[i][j] += (WM[i+1][h-1] + WM1[h][j-1] + bpMLCost + MLinitCost);
@@ -182,10 +193,6 @@ void computePartitionFunction(const string& sequence, int n, int minLoop) {
     // print W
     cout << "W" <<endl;
     printMatrix(W, sequence);
-    //for (int i = 0; i < sequence.length(); i++) {
-    //    cout << "\t" << W[i] ;
-    //}
-    //cout << endl;
     
     traceback(V, sequence, n-2, n-1, string(n, '.'), true);
 }
