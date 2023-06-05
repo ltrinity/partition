@@ -4,6 +4,13 @@
 
 using namespace std;
 
+// add brackets for structure output
+string addBrackets(string structure, int i, int j){
+    structure[i] = '(';
+    structure[j] = ')';
+    return structure;
+}
+
 // matrix printer function
 // for future work, print 1d vector as a matrix
 void printMatrix(const vector<vector<double>>& M, const string& sequence){
@@ -34,9 +41,9 @@ std::pair<bool, double> canPair(char base1, char base2) {
     }
 }
 
-//recursive traceback method
+// recursive traceback method
 void traceback(const vector<vector<double>>& M, const string& sequence, int i, int j, string dotBracket, bool leftTraceAllowed) {
-    //empty, also not possible in V or not allowed
+    // empty, also not possible in V or not allowed
     if (i == -1 or j ==-1) {
         return;
     }
@@ -44,19 +51,17 @@ void traceback(const vector<vector<double>>& M, const string& sequence, int i, i
     traceback(M, sequence, i-1, j, dotBracket, false);
 
     // j unpaired with unambiguous trace back
-    //avoids left up and up left reaching same cell multiple ways
+    // avoids left up and up left reaching same cell multiple ways
     if(leftTraceAllowed){
         traceback(M, sequence, i, j-1, dotBracket, true);
     }
 
-    //paired
+    // paired
     if (M[i][j] < 0) {
-        //for visualizing structures
-        string newDotBracket = dotBracket;
-        newDotBracket[i] = '(';
-        newDotBracket[j] = ')';
-        cout << newDotBracket << endl;
-        traceback(M, sequence, i-1, j-1, newDotBracket, true);
+        // for visualizing structures
+        string dotBracketRecursive = addBrackets(dotBracket, i, j);
+        cout << dotBracketRecursive << M[i][j] << endl;
+        traceback(M, sequence, i-1, j-1, dotBracketRecursive, true);
     }
 }
 
@@ -180,7 +185,7 @@ int main() {
     // basic stack
     //string sequence = "CCAAAGG";
     // basic internal
-    string sequence = "CCCAAAGGCCAAAGGG";
+    string sequence = "CCCAAAGGG";
     int n = sequence.length();
     // minloopsize
     int minLoop = 3;
