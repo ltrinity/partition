@@ -5,7 +5,7 @@
 
 using namespace std;
 
-bool DEBUG = true;
+bool DEBUG = false;
 
 // constraints
 int minLoop = 3;
@@ -76,7 +76,7 @@ void traceback(vector<vector<double>> M, string sequence, int i, int j, string d
     }
 
     // paired
-    if (M[i][j] < 0) {
+    if (M[i][j] > 0) {
         // for visualizing structures
         string dotBracketRecursive = addBrackets(dotBracket, i, j);
         cout << dotBracketRecursive << endl;
@@ -95,6 +95,8 @@ void computePartitionFunction(string sequence, int n, int minLoop) {
     // Initialize VM  matrix
     vector<vector<double>> VM(n, vector<double>(n, 0.0));
 
+    int count = 0;
+
     // Compute V matrix
     for (int j = minLoop + 1; j < n; j++) {
         for (int i = j - minLoop - 1; i >= 0; i--) {
@@ -103,6 +105,7 @@ void computePartitionFunction(string sequence, int n, int minLoop) {
             int hairpin_energy = hairpin.second;
             if (hairpin_possible) {
                 // hairpin
+                count += 1;
                 int hairpinLoopSize = j-i-1;
                 V[i][j] = B(unpairedCost*hairpinLoopSize + hairpin_energy);
                 // stacked pair
@@ -110,6 +113,7 @@ void computePartitionFunction(string sequence, int n, int minLoop) {
                 bool stack_possible = stackedPair.first;
                 int stackedPairEnergy = stackedPair.second;
                 if(stack_possible){
+                    count += 1;
                     float stackSumEnergy = (V[i+1][j-1] * B(stackedPairEnergy));
                     V[i][j] += stackSumEnergy;
                 }
@@ -122,6 +126,7 @@ void computePartitionFunction(string sequence, int n, int minLoop) {
                         bool internal_possible = internalPair.first;
                         int internalEnergy = internalPair.second;
                         if(internal_possible){
+                            count += 1;
                             // unpaired count in between the pairs
                             int internalLoopSize = (k-i-1) + (j-l-1);
                             float internalSumEnergy = (V[k][l] * B(internalEnergy + internalLoopSize*unpairedCost));
@@ -154,6 +159,9 @@ void computePartitionFunction(string sequence, int n, int minLoop) {
                 for (int h = i+2; h <= j-1; h++){
                         VM[i][j] += (WM[i+1][h-1] * WM1[h][j-1] * B(bpMLCost + MLinitCost));
                         V[i][j] += (VM[i][j]);
+                        if(VM[i][j] > 0){
+                            count += 1;
+                        }
                 }
             }
         }
@@ -188,12 +196,16 @@ void computePartitionFunction(string sequence, int n, int minLoop) {
 
         cout << "\nVM" << endl;
         printMatrix(VM, sequence);
-    }
 
-    cout << "\nW" <<endl;
-    printMatrix(W, sequence);
+        cout << "\nW" <<endl;
+        printMatrix(W, sequence);
+    }
     
     traceback(V, sequence, n-2, n-1, string(n, '.'), true);
+
+    cout << "count: " << count << endl;
+
+    cout << "partition function: " << W[0][n-1] << endl;
 }
 
 int main() {
