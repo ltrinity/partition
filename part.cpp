@@ -1,8 +1,15 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
+#include <iomanip>
 
 using namespace std;
+
+//penalties
+float unpairedCost = 0.1;
+float unpairedMLCost = 0.1;
+float bpMLCost = 0.5;
+float MLinitCost = 1;
 
 // add brackets for structure output
 string addBrackets(string structure, int i, int j){
@@ -60,7 +67,7 @@ void traceback(const vector<vector<double>>& M, const string& sequence, int i, i
     if (M[i][j] < 0) {
         // for visualizing structures
         string dotBracketRecursive = addBrackets(dotBracket, i, j);
-        cout << dotBracketRecursive << M[i][j] << endl;
+        cout << dotBracketRecursive << endl;
         traceback(M, sequence, i-1, j-1, dotBracketRecursive, true);
     }
 }
@@ -75,8 +82,6 @@ void computePartitionFunction(const string& sequence, int n, int minLoop) {
     vector<vector<double>> WM(n, vector<double>(n, 0.0));
     // Initialize VM  matrix
     vector<vector<double>> VM(n, vector<double>(n, 0.0));
-    // print the sequence
-    cout << sequence << endl;
 
     // Compute V matrix
     for (int j = minLoop + 1; j < n; j++) {
@@ -87,7 +92,7 @@ void computePartitionFunction(const string& sequence, int n, int minLoop) {
             if (hairpin_possible) {
                 // hairpin and stack
                 int hairpinLoopSize = j-i-1;
-                V[i][j] = 0.1*hairpinLoopSize + hairpin_energy;
+                V[i][j] = unpairedCost*hairpinLoopSize + hairpin_energy;
                 // stacked pair
                 auto stackedPair = canPair(sequence[i+1], sequence[j-1]);
                 bool stack_possible = stackedPair.first;
@@ -107,7 +112,7 @@ void computePartitionFunction(const string& sequence, int n, int minLoop) {
                         if(internal_possible){
                             // unpaired count in between the pairs
                             int internalLoopSize = (k-i-1) + (j-l-1);
-                            float internalSumEnergy = V[k][l] + internalEnergy + internalLoopSize*0.1;
+                            float internalSumEnergy = V[k][l] + internalEnergy + internalLoopSize*unpairedCost;
                             V[i][j] += internalSumEnergy;
                         }
                         k++;
@@ -116,31 +121,48 @@ void computePartitionFunction(const string& sequence, int n, int minLoop) {
                 }
                 // multiloop
                 if(V[i][j]<0){
-                    WM1[i][j] += (V[i][j] + 0.5);
+                    WM1[i][j] += (V[i][j] + bpMLCost);
                 }
                 if(WM1[i][j-1]<0){
-                    WM1[i][j] += (WM1[i][j-1] + 0.2);
+                    WM1[i][j] += (WM1[i][j-1] + unpairedMLCost);
                 }
                 if(WM[i][j-1]<0){
-                    WM[i][j] += (WM[i][j-1] + 0.2);
+                    WM[i][j] += (WM[i][j-1] + unpairedMLCost);
                 }         
                 for (int r = i; r < j-1; r++){
                     //terminal branch
                     if(V[r][j] < 0){
-                        WM[i][j] += (0.2*(r-i)) + V[r][j] + 0.5;
+                        WM[i][j] += ((unpairedMLCost*(r-i)) + V[r][j] + bpMLCost);
                     }
                     //intermediate branch
                     if(WM[i][r] + V[r+1][j] < 0){
-                        WM[i][j] += WM[i][r] + V[r+1][j] + 0.5;
+                        WM[i][j] += (WM[i][r] + V[r+1][j] + bpMLCost);
                     }
                 }
                 for (int h = i+2; h <= j-1; h++){
                     if(WM[i+1][h-1] < 0 && WM1[h][j-1] < 0){
-                        VM[i][j] += WM[i+1][h-1] + WM1[h][j-1] + 0.5 + 1;
-                        V[i][j] += VM[i][j];
+                        VM[i][j] += (WM[i+1][h-1] + WM1[h][j-1] + bpMLCost + MLinitCost);
+                        V[i][j] += (VM[i][j]);
                     }
                 }
 
+            }
+        }
+    }
+
+    // Initialize W matrix
+    vector<vector<double>> W(n, vector<double>(n, 0.0));
+    // base case
+    for (int i = 0; i < n; i++){
+        W[i][i] = 1.0;
+    }
+
+    // Compute W matrix
+    for (int i = 0; i <= n-1; i++){
+        for (int j = 1; j < n ; j++) {
+            W[i][j] += W[i][j-1];
+            for (int r = i; r < j; r++){
+                W[i][j] += max(W[i][r-1],1.0)*V[r][j];
             }
         }
     }
@@ -157,35 +179,24 @@ void computePartitionFunction(const string& sequence, int n, int minLoop) {
     //cout << "VM" << endl;
     //printMatrix(VM, sequence);
 
-    // Initialize W matrix
-    vector<double>  W(n, 0.0);
-    // base case
-    W[0] = 1.0;
-
-    // Compute W matrix
-    for (int j = 1; j < n ; j++) {
-        W[j] += W[j-1];
-        for (int r = 0; r < j; r++){
-            W[j] += max(W[r-1],1.0)*V[r][j];
-        }
-    }
-
     // print W
     cout << "W" <<endl;
-    for (int i = 0; i < sequence.length(); i++) {
-        cout << "\t" << W[i] ;
-    }
-    cout << endl;
+    printMatrix(W, sequence);
+    //for (int i = 0; i < sequence.length(); i++) {
+    //    cout << "\t" << W[i] ;
+    //}
+    //cout << endl;
+    
     traceback(V, sequence, n-2, n-1, string(n, '.'), true);
 }
 
 int main() {
     // basic hairpin
-    //string sequence = "CAAAG";
+    string sequence = "CAAAG";
     // basic stack
     //string sequence = "CCAAAGG";
     // basic internal
-    string sequence = "CCCAAAGGG";
+    //string sequence = "CCAAAGCAAAGG";
     int n = sequence.length();
     // minloopsize
     int minLoop = 3;
