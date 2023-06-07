@@ -16,6 +16,10 @@ float unpairedMLCost = 0.1;
 float bpMLCost = 0.5;
 float MLinitCost = 1;
 
+//constants
+float temperature = 37.0;
+float gasConstant = 0.0821;
+
 // add brackets for structure output
 string addBrackets(string structure, int i, int j){
     structure[i] = '(';
@@ -26,8 +30,6 @@ string addBrackets(string structure, int i, int j){
 // matrix printer function
 // for future work, print 1d vector as a matrix
 void printMatrix(vector<vector<double>> M, string sequence){
-    std::cout << std::fixed;
-    std::cout << std::setprecision(1);
     // print the sequence
     for (int i = 0; i < sequence.length(); i++) {
         cout << "\t" << sequence[i];
@@ -37,7 +39,11 @@ void printMatrix(vector<vector<double>> M, string sequence){
     for (int i = 0; i < sequence.length(); i++) {
         cout << sequence[i] << "\t" ;
         for (int j = 0; j < sequence.length(); j++) {
-            cout << M[i][j] << "\t";
+            if (M[i][j]>0){
+                cout << M[i][j] << "\t";
+            } else {
+                cout << " " << "\t";
+            }
         }
         cout << endl;
     }
@@ -45,7 +51,7 @@ void printMatrix(vector<vector<double>> M, string sequence){
 
 // boltzmann function
 float B(float energy){
-    return exp(-energy);
+    return exp(-energy/(temperature*gasConstant));
 }
 
 // canonical pair checker
@@ -98,8 +104,8 @@ void computePartitionFunction(string sequence, int n, int minLoop) {
     int count = 0;
 
     // Compute V matrix
-    for (int j = minLoop + 1; j < n; j++) {
-        for (int i = j - minLoop - 1; i >= 0; i--) {
+    for (int i = n-1-minLoop; i >= 0; i--) {
+        for (int j = n-1; j >= i + minLoop; j--) {
             auto hairpin = canPair(sequence[i], sequence[j]);
             bool hairpin_possible = hairpin.first;
             int hairpin_energy = hairpin.second;
@@ -209,6 +215,8 @@ void computePartitionFunction(string sequence, int n, int minLoop) {
 }
 
 int main() {
+    std::cout << std::fixed;
+    std::cout << std::setprecision(2);
     // basic hairpin
     //string sequence = "CAAAG";
     // basic stack
@@ -218,6 +226,7 @@ int main() {
     // basic multiloop
     string sequence = "CCAAAGCAAAGG";
     int n = sequence.length();
+    cout << sequence << endl;
     computePartitionFunction(sequence, n, minLoop);
     return 0;
 }
