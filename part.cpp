@@ -5,7 +5,7 @@
 
 using namespace std;
 
-bool DEBUG = false;
+bool DEBUG = true;
 
 // constraints
 int minLoop = 3;
@@ -20,33 +20,13 @@ float MLinitCost = 1;
 float temperature = 37.0;
 float gasConstant = 0.0821;
 
-// add brackets for structure output
-string addBrackets(string structure, int i, int j){
-    structure[i] = '(';
-    structure[j] = ')';
-    return structure;
-}
+// index vector saves space
+// we only need the upper triangle
+int* index;
 
-// matrix printer function
-// for future work, print 1d vector as a matrix
-void printMatrix(vector<vector<double>> M, string sequence){
-    // print the sequence
-    for (int i = 0; i < sequence.length(); i++) {
-        cout << "\t" << sequence[i];
-    }
-    cout << "\n";
-    // print the matrix
-    for (int i = 0; i < sequence.length(); i++) {
-        cout << sequence[i] << "\t" ;
-        for (int j = 0; j < sequence.length(); j++) {
-            if (M[i][j]>0){
-                cout << M[i][j] << "\t";
-            } else {
-                cout << " " << "\t";
-            }
-        }
-        cout << endl;
-    }
+// calculate matrix index vis a vis vector
+int matInd(int i, int j){
+    return (index[i] + j - i);
 }
 
 // boltzmann function
@@ -66,40 +46,53 @@ std::pair<bool, double> canPair(char base1, char base2) {
     }
 }
 
-// recursive traceback method
-void traceback(vector<vector<double>> M, string sequence, int i, int j, string dotBracket, bool leftTraceAllowed) {
-    // empty, also not possible in V or not allowed
-    if (i == -1 or j ==-1) {
-        return;
+// vectir printer function
+void printVector(const double* M, string sequence){
+    // Print the sequence
+    cout << "\t";
+    for (int i = 0; i < sequence.length(); i++) {
+        cout << sequence[i]<< "\t" ;
     }
-    // i unpaired
-    traceback(M, sequence, i-1, j, dotBracket, false);
+    cout << "\n";
 
-    // j unpaired with unambiguous trace back
-    // avoids left up and up left reaching same cell multiple ways
-    if(leftTraceAllowed){
-        traceback(M, sequence, i, j-1, dotBracket, true);
-    }
-
-    // paired
-    if (M[i][j] > 0) {
-        // for visualizing structures
-        string dotBracketRecursive = addBrackets(dotBracket, i, j);
-        cout << dotBracketRecursive << endl;
-        traceback(M, sequence, i-1, j-1, dotBracketRecursive, true);
+    int size = sequence.length();
+    // Print the matrix
+    for (int i = 0; i < size; i++) {
+        cout << sequence[i] << "\t";
+        //empty spaces for bottom triangle
+        int x = i;
+        while( x > 0){
+            cout << "\t";
+            x--;
+        }
+        for (int j = 0; j < size-i; j++) {
+            cout << std::setprecision(2) << M[index[i] + j] << "\t";
+        }
+        cout << endl;
     }
 }
 
+
+
 // Compute the pf using simple energy model
 void computePartitionFunction(string sequence, int n, int minLoop) {
-    // Initialize V matrix
-    vector<vector<double>> V(n, vector<double>(n, 0.0));
-    // Initialize WM1  matrix
-    vector<vector<double>> WM1(n, vector<double>(n, 0.0));
-    // Initialize WM  matrix
-    vector<vector<double>> WM(n, vector<double>(n, 0.0));
-    // Initialize VM  matrix
-    vector<vector<double>> VM(n, vector<double>(n, 0.0));
+
+    //fill index vector
+    int vectorLength = (n*(n+1))/2;
+    int rowInc = n;
+    for(int i = 1; i <= n; i++){
+        index[i] += index[i-1]+rowInc;
+        rowInc--;
+    }
+    
+    // Initialize V vector
+    double* V = new double[vectorLength];
+    // Initialize WM1 vector
+    double* WM1 = new double[vectorLength];
+    // Initialize WM vector
+    double* WM = new double[vectorLength];
+    // Initialize VM vector
+    double* VM = new double[vectorLength];
 
     int count = 0;
 
@@ -112,16 +105,17 @@ void computePartitionFunction(string sequence, int n, int minLoop) {
             if (hairpin_possible) {
                 // hairpin
                 count += 1;
+                int ijLoc = matInd(i,j);
                 int hairpinLoopSize = j-i-1;
-                V[i][j] = B(unpairedCost*hairpinLoopSize + hairpin_energy);
+                V[ijLoc] = B(unpairedCost*hairpinLoopSize + hairpin_energy);
                 // stacked pair
                 auto stackedPair = canPair(sequence[i+1], sequence[j-1]);
                 bool stack_possible = stackedPair.first;
                 int stackedPairEnergy = stackedPair.second;
                 if(stack_possible){
                     count += 1;
-                    float stackSumEnergy = (V[i+1][j-1] * B(stackedPairEnergy));
-                    V[i][j] += stackSumEnergy;
+                    float stackSumEnergy = V[matInd(i+1,j-1)] * B(stackedPairEnergy);
+                    V[ijLoc] += stackSumEnergy;
                 }
                 // internal bulge
                 for(int m = j-2; m > 0; m--){
@@ -135,37 +129,40 @@ void computePartitionFunction(string sequence, int n, int minLoop) {
                             count += 1;
                             // unpaired count in between the pairs
                             int internalLoopSize = (k-i-1) + (j-l-1);
-                            float internalSumEnergy = (V[k][l] * B(internalEnergy + internalLoopSize*unpairedCost));
-                            V[i][j] += internalSumEnergy;
+                            float internalSumEnergy = V[matInd(k,l)] * B(internalEnergy + internalLoopSize*unpairedCost);
+                            V[ijLoc] += internalSumEnergy;
                         }
                         k++;
                         l++;
                     }
                 }
                 // multiloop
-                // terminal (rightmost) branch possible
-                WM1[i][j] += (V[i][j] * B(bpMLCost));
+                // check if terminal (rightmost) branch possible
+                WM1[ijLoc] += (V[ijLoc] * B(bpMLCost));
                 
-                // move to terminal branch i,j-1
-                WM1[i][j] += (WM1[i][j-1] * B(unpairedMLCost));
+                //option for j unpaired and penalty inside of multiloop
+                int ijsub1Loc = matInd(i, j-1);
 
-                // unpaired base between branches
-                WM[i][j] += (WM[i][j-1] * B(unpairedMLCost));
+                // move to terminal branch i,j-1 (j unpaired)
+                WM1[ijLoc] += (WM1[ijsub1Loc] * B(unpairedMLCost));
+
+                // unpaired base between branches (j unpaired)
+                WM[ijLoc] += (WM[ijsub1Loc] * B(unpairedMLCost));
 
                 // option for additional branch 
                 for (int r = i; r < j-1; r++){
                     //initial branch
-                    WM[i][j] += (V[r][j] * B(unpairedMLCost*(r-i) + bpMLCost));
-                    
+                    WM[ijLoc] += (V[matInd(r,j)] * B(unpairedMLCost*(r-i) + bpMLCost));
+
                     // intermediate branch
-                    WM[i][j] += (WM[i][r] * V[r+1][j] * B(bpMLCost));
+                    WM[ijLoc] += (WM[matInd(i,r)] * V[matInd(r+1,j)] * B(bpMLCost));
                 }
 
                 // at least two branches required for multiloop
                 for (int h = i+2; h <= j-1; h++){
-                        VM[i][j] += (WM[i+1][h-1] * WM1[h][j-1] * B(bpMLCost + MLinitCost));
-                        V[i][j] += (VM[i][j]);
-                        if(VM[i][j] > 0){
+                        VM[ijLoc] += (WM[matInd(i+1,h-1)] * WM1[matInd(h,j-1)] * B(bpMLCost + MLinitCost));
+                        V[ijLoc] += (VM[ijLoc]);
+                        if(VM[ijLoc] > 0){
                             count += 1;
                         }
                 }
@@ -173,45 +170,51 @@ void computePartitionFunction(string sequence, int n, int minLoop) {
         }
     }
 
-    // Initialize W matrix
-    vector<vector<double>> W(n, vector<double>(n, 0.0));
+    // Initialize W vector
+    double* W = new double[sequence.length()];
     // base case
-    for (int i = 0; i < n; i++){
-        W[i][i] = 1.0;
-    }
-
-    // Compute W matrix
-    for (int i = 0; i <= n-1; i++){
-        for (int j = 1; j < n ; j++) {
-            W[i][j] += W[i][j-1];
-            for (int r = i; r < j; r++){
-                W[i][j] += (max(W[i][r-1],1.0)*V[r][j]);
-            }
+    W[0] = 1.0;
+    // Compute W
+    for (int j = 1; j < n; j++) {
+        for (int r = 0; r < j; r++){
+            W[j] += (max(W[r-1],1.0)*V[matInd(r,j)]);
         }
+        W[j] += W[j-1];
     }
+    
 
     if(DEBUG){
         cout << "V" << endl;
-        printMatrix(V, sequence);
+        printVector(V, sequence);
 
-        cout << "\nWM1" << endl;
-        printMatrix(WM1, sequence);
+         cout << "\nWM1" << endl;
+         printVector(WM1, sequence);
 
-        cout << "\nWM" << endl;
-        printMatrix(WM, sequence);
+         cout << "\nWM" << endl;
+         printVector(WM, sequence);
 
-        cout << "\nVM" << endl;
-        printMatrix(VM, sequence);
+         cout << "\nVM" << endl;
+         printVector(VM, sequence);
 
         cout << "\nW" <<endl;
-        printMatrix(W, sequence);
+
+         // Print the sequence
+        cout << "\t";
+        for (int i = 0; i < sequence.length(); i++) {
+            cout << sequence[i]<< "\t" ;
+        }
+        cout << "\n\t";
+        // Print the matrix
+        for (int i = 0; i < sequence.length(); i++) {
+            cout << W[i] << "\t" ;
+        }
+        cout << "\n";
+        
     }
     
-    traceback(V, sequence, n-2, n-1, string(n, '.'), true);
-
     cout << "count: " << count << endl;
 
-    cout << "partition function: " << W[0][n-1] << endl;
+    cout << "partition function: " << W[index[0]+(n-1)] << endl;
 }
 
 int main() {
@@ -226,6 +229,7 @@ int main() {
     // basic multiloop
     string sequence = "CCAAAGCAAAGG";
     int n = sequence.length();
+    index = new int[n];
     cout << sequence << endl;
     computePartitionFunction(sequence, n, minLoop);
     return 0;
