@@ -3,9 +3,21 @@
 #include <cmath>
 #include <iomanip>
 
+//VIENNA TO DO
+
+//#include <ViennaRNA/energy_par.h>
+//#include <ViennaRNA/fold_vars.h>
+//#include <ViennaRNA/part_func.h>
+
+// Initialize energy parameters
+//vrna_md_t md;
+
+// Initialize the fold compound
+//vrna_fold_compound_t* vc;
+
 using namespace std;
 
-bool DEBUG = true;
+bool DEBUG = false;
 
 // constraints
 int minLoop = 3;
@@ -17,7 +29,7 @@ float bpMLCost = 0.5;
 float MLinitCost = 1;
 
 //constants
-float temperature = 37.0;
+float temp = 37.0;
 float gasConstant = 0.0821;
 
 // index vector saves space
@@ -31,7 +43,7 @@ int matInd(int i, int j){
 
 // boltzmann function
 float B(float energy){
-    return exp(-energy/(temperature*gasConstant));
+    return exp(-energy/(temp*gasConstant));
 }
 
 // canonical pair checker
@@ -71,8 +83,6 @@ void printVector(const double* M, string sequence){
         cout << endl;
     }
 }
-
-
 
 // Compute the pf using simple energy model
 void computePartitionFunction(string sequence, int n, int minLoop) {
@@ -121,6 +131,7 @@ void computePartitionFunction(string sequence, int n, int minLoop) {
                 for(int m = j-2; m > 0; m--){
                     int k = i + 1;
                     int l = m;
+                    // possibly remove this check
                     while (l <= j-1 && k < l-minLoop){
                         auto internalPair = canPair(sequence[k], sequence[l]);
                         bool internal_possible = internalPair.first;
@@ -137,10 +148,10 @@ void computePartitionFunction(string sequence, int n, int minLoop) {
                     }
                 }
                 // multiloop
-                // check if terminal (rightmost) branch possible
+                // terminal (rightmost) branch
                 WM1[ijLoc] += (V[ijLoc] * B(bpMLCost));
                 
-                //option for j unpaired and penalty inside of multiloop
+                // option for j unpaired and penalty inside of multiloop
                 int ijsub1Loc = matInd(i, j-1);
 
                 // move to terminal branch i,j-1 (j unpaired)
@@ -182,39 +193,65 @@ void computePartitionFunction(string sequence, int n, int minLoop) {
         W[j] += W[j-1];
     }
     
-
     if(DEBUG){
         cout << "V" << endl;
         printVector(V, sequence);
-
-         cout << "\nWM1" << endl;
-         printVector(WM1, sequence);
-
-         cout << "\nWM" << endl;
-         printVector(WM, sequence);
-
-         cout << "\nVM" << endl;
-         printVector(VM, sequence);
-
+        cout << "\nWM1" << endl;
+        printVector(WM1, sequence);
+        cout << "\nWM" << endl;
+        printVector(WM, sequence);
+        cout << "\nVM" << endl;
+        printVector(VM, sequence);
         cout << "\nW" <<endl;
-
-         // Print the sequence
+         // Print W
         cout << "\t";
         for (int i = 0; i < sequence.length(); i++) {
             cout << sequence[i]<< "\t" ;
         }
         cout << "\n\t";
-        // Print the matrix
         for (int i = 0; i < sequence.length(); i++) {
             cout << W[i] << "\t" ;
         }
         cout << "\n";
-        
     }
     
     cout << "count: " << count << endl;
 
     cout << "partition function: " << W[index[0]+(n-1)] << endl;
+
+    // PIPE DOTPLOT VIA Gnuplot
+    // Open Gnuplot
+    FILE* gnuplotPipe = popen("gnuplot -persist", "w");
+    //output png
+    fprintf(gnuplotPipe, "set terminal png; set output 'plot.png'\n");
+    //set acis
+    fprintf(gnuplotPipe, "set yrange [0:%d]; set xrange [0:%d]\n",n,n);
+    //set ticks
+    fprintf(gnuplotPipe, "set tics scale 0;set xtics format ''\n");
+    fprintf(gnuplotPipe, "set x2tics(");
+    for(float i = 0;i< n-1;i++){
+        fprintf(gnuplotPipe, "'%c' %f, ",sequence.at(i),i+0.5) ;   
+    }
+    fprintf(gnuplotPipe, "'%c' %f)\n",sequence.at(n-1),n-0.5) ;  
+    fprintf(gnuplotPipe, "set ytics(");
+    for(float i = 0;i< n-1;i++){
+        fprintf(gnuplotPipe, "'%c' %f, ",sequence.at(n-i-1),i+0.5) ;   
+    }
+    fprintf(gnuplotPipe, "'%c' %f)\n",sequence.at(0),n-0.5) ;  
+    fprintf(gnuplotPipe, "set grid ytics x2tics\n"); 
+    //init rect from V/W[0,n-1] with sqrt scaling
+    int idx = 0;
+    for(int i=n-1; i >= 0; i--) {
+      for(int j=n-i-1; j < n; j++) {
+          double size = sqrt(V[idx++]/W[index[0]+(n-1)]);
+          fprintf(gnuplotPipe, "set object %d rect center %f, %f size %f, %f fc black\n", idx, j+0.5, i+0.5, size, size);
+
+      }
+    }
+    fprintf(gnuplotPipe, "plot 0 notitle\n");
+
+    // Close the pipe
+    pclose(gnuplotPipe);
 }
 
 int main() {
