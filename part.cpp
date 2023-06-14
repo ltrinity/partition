@@ -2,18 +2,12 @@
 #include <vector>
 #include <cmath>
 #include <iomanip>
-
-//VIENNA TO DO
-
-//#include <ViennaRNA/energy_par.h>
-//#include <ViennaRNA/fold_vars.h>
-//#include <ViennaRNA/part_func.h>
-
-// Initialize energy parameters
-//vrna_md_t md;
-
-// Initialize the fold compound
-//vrna_fold_compound_t* vc;
+#include <cstring>
+extern "C" {
+#include "ViennaRNA/pair_mat.h"
+//#include "ViennaRNA/loops/all.h"
+//#include "ViennaRNA/params/io.h"
+}
 
 using namespace std;
 
@@ -34,11 +28,11 @@ float gasConstant = 0.0821;
 
 // index vector saves space
 // we only need the upper triangle
-int* index;
+vector<int> indexVec;
 
 // calculate matrix index vis a vis vector
 int matInd(int i, int j){
-    return (index[i] + j - i);
+    return (indexVec[i] + j - i);
 }
 
 // boltzmann function
@@ -78,7 +72,7 @@ void printVector(const double* M, string sequence){
             x--;
         }
         for (int j = 0; j < size-i; j++) {
-            cout << std::setprecision(2) << M[index[i] + j] << "\t";
+            cout << std::setprecision(2) << M[indexVec[i] + j] << "\t";
         }
         cout << endl;
     }
@@ -91,7 +85,7 @@ void computePartitionFunction(string sequence, int n, int minLoop) {
     int vectorLength = (n*(n+1))/2;
     int rowInc = n;
     for(int i = 1; i <= n; i++){
-        index[i] += index[i-1]+rowInc;
+        indexVec[i] += indexVec[i-1]+rowInc;
         rowInc--;
     }
     
@@ -217,7 +211,7 @@ void computePartitionFunction(string sequence, int n, int minLoop) {
     
     cout << "count: " << count << endl;
 
-    cout << "partition function: " << W[index[0]+(n-1)] << endl;
+    cout << "partition function: " << W[indexVec[0]+(n-1)] << endl;
 
     // PIPE DOTPLOT VIA Gnuplot
     // Open Gnuplot
@@ -243,7 +237,7 @@ void computePartitionFunction(string sequence, int n, int minLoop) {
     int idx = 0;
     for(int i=n-1; i >= 0; i--) {
       for(int j=n-i-1; j < n; j++) {
-          double size = sqrt(V[idx++]/W[index[0]+(n-1)]);
+          double size = sqrt(V[idx++]/W[indexVec[0]+(n-1)]);
           fprintf(gnuplotPipe, "set object %d rect center %f, %f size %f, %f fc black\n", idx, j+0.5, i+0.5, size, size);
 
       }
@@ -266,7 +260,7 @@ int main() {
     // basic multiloop
     string sequence = "CCAAAGCAAAGG";
     int n = sequence.length();
-    index = new int[n];
+    indexVec.resize(n, 0);
     cout << sequence << endl;
     computePartitionFunction(sequence, n, minLoop);
     return 0;
