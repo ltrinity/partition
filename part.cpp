@@ -3,11 +3,6 @@
 #include <cmath>
 #include <iomanip>
 #include <cstring>
-extern "C" {
-#include "ViennaRNA/pair_mat.h"
-//#include "ViennaRNA/loops/all.h"
-//#include "ViennaRNA/params/io.h"
-}
 
 using namespace std;
 
@@ -36,7 +31,7 @@ int matInd(int i, int j){
 }
 
 // boltzmann function
-float B(float energy){
+float Bolt(float energy){
     return exp(-energy/(temp*gasConstant));
 }
 
@@ -80,7 +75,6 @@ void printVector(const double* M, string sequence){
 
 // Compute the pf using simple energy model
 void computePartitionFunction(string sequence, int n, int minLoop) {
-
     //fill index vector
     int vectorLength = (n*(n+1))/2;
     int rowInc = n;
@@ -111,14 +105,14 @@ void computePartitionFunction(string sequence, int n, int minLoop) {
                 count += 1;
                 int ijLoc = matInd(i,j);
                 int hairpinLoopSize = j-i-1;
-                V[ijLoc] = B(unpairedCost*hairpinLoopSize + hairpin_energy);
+	            V[ijLoc] = Bolt(unpairedCost*hairpinLoopSize + hairpin_energy);
                 // stacked pair
                 auto stackedPair = canPair(sequence[i+1], sequence[j-1]);
                 bool stack_possible = stackedPair.first;
                 int stackedPairEnergy = stackedPair.second;
                 if(stack_possible){
                     count += 1;
-                    float stackSumEnergy = V[matInd(i+1,j-1)] * B(stackedPairEnergy);
+                    float stackSumEnergy = V[matInd(i+1,j-1)] * Bolt(stackedPairEnergy);
                     V[ijLoc] += stackSumEnergy;
                 }
                 // internal bulge
@@ -134,7 +128,7 @@ void computePartitionFunction(string sequence, int n, int minLoop) {
                             count += 1;
                             // unpaired count in between the pairs
                             int internalLoopSize = (k-i-1) + (j-l-1);
-                            float internalSumEnergy = V[matInd(k,l)] * B(internalEnergy + internalLoopSize*unpairedCost);
+                            float internalSumEnergy = V[matInd(k,l)] * Bolt(internalEnergy + internalLoopSize*unpairedCost);
                             V[ijLoc] += internalSumEnergy;
                         }
                         k++;
@@ -143,29 +137,29 @@ void computePartitionFunction(string sequence, int n, int minLoop) {
                 }
                 // multiloop
                 // terminal (rightmost) branch
-                WM1[ijLoc] += (V[ijLoc] * B(bpMLCost));
+                WM1[ijLoc] += (V[ijLoc] * Bolt(bpMLCost));
                 
                 // option for j unpaired and penalty inside of multiloop
                 int ijsub1Loc = matInd(i, j-1);
 
                 // move to terminal branch i,j-1 (j unpaired)
-                WM1[ijLoc] += (WM1[ijsub1Loc] * B(unpairedMLCost));
+                WM1[ijLoc] += (WM1[ijsub1Loc] * Bolt(unpairedMLCost));
 
                 // unpaired base between branches (j unpaired)
-                WM[ijLoc] += (WM[ijsub1Loc] * B(unpairedMLCost));
+                WM[ijLoc] += (WM[ijsub1Loc] * Bolt(unpairedMLCost));
 
                 // option for additional branch 
                 for (int r = i; r < j-1; r++){
                     //initial branch
-                    WM[ijLoc] += (V[matInd(r,j)] * B(unpairedMLCost*(r-i) + bpMLCost));
+                    WM[ijLoc] += (V[matInd(r,j)] * Bolt(unpairedMLCost*(r-i) + bpMLCost));
 
                     // intermediate branch
-                    WM[ijLoc] += (WM[matInd(i,r)] * V[matInd(r+1,j)] * B(bpMLCost));
+                    WM[ijLoc] += (WM[matInd(i,r)] * V[matInd(r+1,j)] * Bolt(bpMLCost));
                 }
 
                 // at least two branches required for multiloop
                 for (int h = i+2; h <= j-1; h++){
-                        VM[ijLoc] += (WM[matInd(i+1,h-1)] * WM1[matInd(h,j-1)] * B(bpMLCost + MLinitCost));
+                        VM[ijLoc] += (WM[matInd(i+1,h-1)] * WM1[matInd(h,j-1)] * Bolt(bpMLCost + MLinitCost));
                         V[ijLoc] += (VM[ijLoc]);
                         if(VM[ijLoc] > 0){
                             count += 1;
@@ -252,16 +246,16 @@ int main() {
     std::cout << std::fixed;
     std::cout << std::setprecision(2);
     // basic hairpin
-    //string sequence = "CAAAG";
+    string seq = "CAAAG";
     // basic stack
     //string sequence = "CCAAAGG";
     // basic internal
     //string sequence = "CACAAAGG";
     // basic multiloop
-    string sequence = "CCAAAGCAAAGG";
-    int n = sequence.length();
+    //string seq = "CCAAAGCAAAGG";
+    int n = seq.length();
     indexVec.resize(n, 0);
-    cout << sequence << endl;
-    computePartitionFunction(sequence, n, minLoop);
+    cout << seq << endl;
+    computePartitionFunction(seq, n, minLoop);
     return 0;
 }
