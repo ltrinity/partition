@@ -3,8 +3,20 @@
 #include <cmath>
 #include <iomanip>
 #include <cstring>
+#include <string>
+extern "C" {
+#include "ViennaRNA/pair_mat.h"
+#include "ViennaRNA/loops/all.h"
+#include "ViennaRNA/params/io.h"
+}
 
-using namespace std;
+//! type of base pair
+typedef int32_t pair_type;
+//! type of energy
+typedef int32_t energy_t;
+//! type of position
+typedef int32_t cand_pos_t;
+
 
 bool DEBUG = false;
 
@@ -23,7 +35,7 @@ float gasConstant = 0.0821;
 
 // index vector saves space
 // we only need the upper triangle
-vector<int> indexVec;
+std::vector<int> indexVec;
 
 // calculate matrix index vis a vis vector
 int matInd(int i, int j){
@@ -48,33 +60,33 @@ std::pair<bool, double> canPair(char base1, char base2) {
 }
 
 // vectir printer function
-void printVector(const double* M, string sequence){
+void printVector(const double* M, std::string sequence){
     // Print the sequence
-    cout << "\t";
+    std::cout << "\t";
     for (int i = 0; i < sequence.length(); i++) {
-        cout << sequence[i]<< "\t" ;
+        std::cout << sequence[i]<< "\t" ;
     }
-    cout << "\n";
+    std::cout << "\n";
 
     int size = sequence.length();
     // Print the matrix
     for (int i = 0; i < size; i++) {
-        cout << sequence[i] << "\t";
+        std::cout << sequence[i] << "\t";
         //empty spaces for bottom triangle
         int x = i;
         while( x > 0){
-            cout << "\t";
+            std::cout << "\t";
             x--;
         }
         for (int j = 0; j < size-i; j++) {
-            cout << std::setprecision(2) << M[indexVec[i] + j] << "\t";
+            std::cout << std::setprecision(2) << M[indexVec[i] + j] << "\t";
         }
-        cout << endl;
+        std::cout << std::endl;
     }
 }
 
 // Compute the pf using simple energy model
-void computePartitionFunction(string sequence, int n, int minLoop) {
+void computePartitionFunction(std::string sequence, int n, int minLoop) {
     //fill index vector
     int vectorLength = (n*(n+1))/2;
     int rowInc = n;
@@ -176,36 +188,36 @@ void computePartitionFunction(string sequence, int n, int minLoop) {
     // Compute W
     for (int j = 1; j < n; j++) {
         for (int r = 0; r < j; r++){
-            W[j] += (max(W[r-1],1.0)*V[matInd(r,j)]);
+            W[j] += (std::max(W[r-1],1.0)*V[matInd(r,j)]);
         }
         W[j] += W[j-1];
     }
     
     if(DEBUG){
-        cout << "V" << endl;
+        std::cout << "V" << std::endl;
         printVector(V, sequence);
-        cout << "\nWM1" << endl;
+        std::cout << "\nWM1" << std::endl;
         printVector(WM1, sequence);
-        cout << "\nWM" << endl;
+        std::cout << "\nWM" << std::endl;
         printVector(WM, sequence);
-        cout << "\nVM" << endl;
+        std::cout << "\nVM" << std::endl;
         printVector(VM, sequence);
-        cout << "\nW" <<endl;
+        std::cout << "\nW" <<std::endl;
          // Print W
-        cout << "\t";
+        std::cout << "\t";
         for (int i = 0; i < sequence.length(); i++) {
-            cout << sequence[i]<< "\t" ;
+            std::cout << sequence[i]<< "\t" ;
         }
-        cout << "\n\t";
+        std::cout << "\n\t";
         for (int i = 0; i < sequence.length(); i++) {
-            cout << W[i] << "\t" ;
+            std::cout << W[i] << "\t" ;
         }
-        cout << "\n";
+        std::cout << "\n";
     }
     
-    cout << "count: " << count << endl;
+    std::cout << "count: " << count << std::endl;
 
-    cout << "partition function: " << W[indexVec[0]+(n-1)] << endl;
+    std::cout << "partition function: " << W[indexVec[0]+(n-1)] << std::endl;
 
     // PIPE DOTPLOT VIA Gnuplot
     // Open Gnuplot
@@ -246,16 +258,23 @@ int main() {
     std::cout << std::fixed;
     std::cout << std::setprecision(2);
     // basic hairpin
-    string seq = "CAAAG";
+    std::string seq = "CAAAG";
     // basic stack
-    //string sequence = "CCAAAGG";
+    //std::string sequence = "CCAAAGG";
     // basic internal
-    //string sequence = "CACAAAGG";
+    //std::string sequence = "CACAAAGG";
     // basic multiloop
-    //string seq = "CCAAAGCAAAGG";
+    //std::string seq = "CCAAAGCAAAGG";
     int n = seq.length();
     indexVec.resize(n, 0);
-    cout << seq << endl;
+    std::cout << seq << std::endl;
+    // Initialize RNA folding parameters
+    vrna_params_load_defaults();
+    make_pair_matrix();
+    vrna_md_t md;
+    paramT* params = get_scaled_parameters(37.0,md);
+    auto const& S_ = encode_sequence(seq.c_str(),0);
+	auto const& S1_ = encode_sequence(seq.c_str(),1);
     computePartitionFunction(seq, n, minLoop);
     return 0;
 }
