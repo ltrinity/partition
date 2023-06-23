@@ -4,19 +4,6 @@
 #include <iomanip>
 #include <cstring>
 #include <string>
-extern "C" {
-#include "ViennaRNA/pair_mat.h"
-#include "ViennaRNA/loops/all.h"
-#include "ViennaRNA/params/io.h"
-}
-
-//! type of base pair
-typedef int32_t pair_type;
-//! type of energy
-typedef int32_t energy_t;
-//! type of position
-typedef int32_t cand_pos_t;
-
 
 bool DEBUG = false;
 
@@ -258,23 +245,16 @@ int main() {
     std::cout << std::fixed;
     std::cout << std::setprecision(2);
     // basic hairpin
-    std::string seq = "CAAAG";
+    //std::string seq = "CAAAG";
     // basic stack
-    //std::string sequence = "CCAAAGG";
+    //std::string seq = "CCAAAGG";
     // basic internal
-    //std::string sequence = "CACAAAGG";
+    //std::string seq = "CACAAAGG";
     // basic multiloop
-    //std::string seq = "CCAAAGCAAAGG";
+    std::string seq = "CCAAAGCAAAGG";
     int n = seq.length();
     indexVec.resize(n, 0);
     std::cout << seq << std::endl;
-    // Initialize RNA folding parameters
-    vrna_params_load_defaults();
-    make_pair_matrix();
-    vrna_md_t md;
-    paramT* params = get_scaled_parameters(37.0,md);
-    auto const& S_ = encode_sequence(seq.c_str(),0);
-	auto const& S1_ = encode_sequence(seq.c_str(),1);
     computePartitionFunction(seq, n, minLoop);
     return 0;
 }
