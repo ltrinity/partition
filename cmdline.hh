@@ -3,7 +3,8 @@
 #include "base_types.hh"
 #include <string>
 
-
+// The restricted structure
+extern std::string input_structure;
 // The parameter file location
 extern std::string parameter_file;
 
@@ -13,12 +14,14 @@ struct args_info
   const char *help_help; /**< @brief Print help and exit help description.  */
   const char *version_help; /**< @brief Print version and exit help description.  */
   const char *verbose_help; /**< @brief Turn on verbose output help description.  */
+  const char *input_structure_help; /**< @brief Give restricted structure as input help description.  */
   const char *paramFile_help; /**< @brief Use a separate parameter list */
   const char *noGC_help; /**< @brief Turn off garbage collection and related overhead help description.  */
   
   unsigned int help_given ;	/**< @brief Whether help was given.  */
   unsigned int version_given ;	/**< @brief Whether version was given.  */
   unsigned int verbose_given ;	/**< @brief Whether verbose was given.  */
+  unsigned int input_structure_given ;	/**< @brief Whether restricted structure was given.  */
   unsigned int paramFile_given ; /** <@brief whether a parameter file was given */
   unsigned int noGC_given ;	/**< @brief Whether noGC was given.  */
 

@@ -17,19 +17,22 @@ const char *args_info_usage = "Usage: sparsemfefold"  "[options] [sequence]";
 
 const char *args_info_versiontext = "";
 
-const char *args_info_description = "Read RNA sequence from stdin or cmdline; predict minimum\nfree energy and optimum structure using the time- and space-efficient\nMFE RNA folding algorithm of Will and Jabbari, 2015. The results are\nequivalent to RNAfold -d0, but the computation takes less time (for\nlong sequences) and much less space.";
+const char *args_info_description = "Read RNA sequence from stdin or cmdline; compute partition function using time- and space-efficient\nRNA folding algorithm CParty";
 
 const char *args_info_help[] = {
   "  -h, --help             Print help and exit",
   "  -V, --version          Print version and exit",
   "  -v, --verbose          Turn on verbose output",
+  "  -r, --input-structure  Give a restricted structure as an input structure",
   "  -P, --paramFile        Read energy parameters from paramfile, instead of using the default parameter set.\n",
   "      --noGC             Turn off garbage collection and related overhead",
   "\nThe input sequence is read from standard input, unless it is\ngiven on the command line.\n",
   
 };
 
+std::string input_structure;
 std::string parameter_file;
+
 static void clear_given (struct args_info *args_info);
 static void clear_args (struct args_info *args_info);
 
@@ -44,8 +47,9 @@ static void init_args_info(struct args_info *args_info)
   args_info->help_help = args_info_help[0] ;
   args_info->version_help = args_info_help[1] ;
   args_info->verbose_help = args_info_help[2] ;
-  args_info->paramFile_help = args_info_help[3] ;
-  args_info->noGC_help = args_info_help[4] ;
+  args_info->input_structure_help = args_info_help[3] ;
+  args_info->paramFile_help = args_info_help[4] ;
+  args_info->noGC_help = args_info_help[5] ;
 
   
 }
@@ -90,6 +94,7 @@ static void clear_given (struct args_info *args_info)
   args_info->help_given = 0 ;
   args_info->version_given = 0 ;
   args_info->verbose_given = 0 ;
+  args_info->input_structure_given = 0 ;
   args_info->paramFile_given = 0 ;
   args_info->noGC_given = 0 ;
 }
@@ -280,6 +285,7 @@ int cmdline_parser_internal (int argc, char **argv, struct args_info *args_info,
         { "help",	0, NULL, 'h' },
         { "version",	0, NULL, 'V' },
         { "verbose",	0, NULL, 'v' },
+        { "input-structure",	required_argument, NULL, 'r' },
         { "paramFile",	required_argument, NULL, 'P' },
         { "noGC",	0, NULL, 0 },
         { 0,  0, 0, 0 }
@@ -310,7 +316,18 @@ int cmdline_parser_internal (int argc, char **argv, struct args_info *args_info,
             goto failure;
         
           break;
-          case 'P':	/* Take in a different Parameter File.  */
+        case 'r':	/* Specify restricted structure.  */
+        
+        
+          if (update_arg( 0 , 
+               0 , &(args_info->input_structure_given),
+              &(local_args_info.input_structure_given), optarg, 0, 0, ARG_NO,0, 0,"input-structure", 'r',additional_error))
+            goto failure;
+
+            input_structure = optarg;
+        
+          break;
+        case 'P':	/* Take in a different Parameter File.  */
         
         
           if (update_arg( 0 , 
