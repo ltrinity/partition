@@ -38,9 +38,11 @@ class CParty {
 		short *S1_;
 
 		paramT *params_;
+
 		std::string restricted_;
 
         bool garbage_collect_;
+		
 
 		LocARNA::Matrix<energy_t> V_; // store V[i..i+MAXLOOP-1][1..n]
 
@@ -105,8 +107,6 @@ class CParty {
 	energy_t fold(auto const& seq, auto &V, auto const& S, auto const& S1, auto const& params, auto const& n, auto const& garbage_collect,const cand_pos_t*p_table,const cand_pos_t*last_j_array,const cand_pos_t*in_pair_array,const cand_pos_t*up_array) {
 		for (cand_pos_t i=n; i>0; --i) {
 		 	for (cand_pos_t j=i+TURN+1; j<=n; j++ ) {
-				std::cout << i << j << std::endl;
-				std::cout << "evaluate" << std::endl;
 		 		bool evaluate = evaluate_restriction(i,j,last_j_array,in_pair_array);
 				cand_pos_t i_mod= (uint_least32_t)i%(MAXLOOP+1);
 		 		const pair_type ptype_closing = pair[S[i]][S[j]];
@@ -119,11 +119,9 @@ class CParty {
 		 		// cases with base pair (i,j)
 		 		if(ptype_closing>0 && evaluate && !restricted) { // if i,j form a canonical base pair
 		 			bool canH = (paired || unpaired);
-		 			if(up_array[j-1]<(j-i-1)) canH=false;
-					
+		 			//if(up_array[j-1]<(j-i-1)) canH=false;
 		 			energy_t v_h = canH ? HairpinE(seq,S,S1,params,i,j) : INF;
-					std::cout << "hairpin" <<std::endl;
-					std::cout << v_h << std::endl;
+					std::cout << "hairpin energy: "  << v_h <<std::endl;
 		 			// info of best interior loop decomposition (if better than hairpin)
 		 			cand_pos_t best_l=0;
 		 			cand_pos_t best_k=0;
@@ -140,16 +138,19 @@ class CParty {
 		 					cand_pos_t min_l=std::max(k+TURN+1, k+j-i- MAXLOOP-2);
 							
 		 					for (size_t l=j-1; l>=min_l; --l) {
-		 						assert(k-i+j-l-2<=MAXLOOP);
-		 						energy_t canl = ((up_array[j-1]>=(j-l-1)-1) | cank);
-		 						energy_t v_iloop_kl = INF & canl;
 								
+		 						assert(k-i+j-l-2<=MAXLOOP);
+		 						//energy_t canl = ((up_array[j-1]>=(j-l-1)-1) | cank);
+		 						energy_t v_iloop_kl = INF; //& canl;
 		 						v_iloop_kl = v_iloop_kl + V(k_mod,l) + E_IntLoop(k-i-1,j-l-1,ptype_closing,rtype[pair[S[k]][S[l]]],S1[i+1],S1[j-1],S1[k-1],S1[l+1],const_cast<paramT *>(params));
+								if ( v_iloop_kl < v_iloop) {
+									v_iloop = v_iloop_kl;
+								}
 							}
 						}
 					}
 		 			//const energy_t v_split = E_MbLoop(dmli1,dmli2,S,params,i,j,p_table);
-
+					std::cout << "internal loop energy: "  << v_iloop <<std::endl;
 		 			//v = std::min(v_h,std::min(v_iloop,v_split));
 
 					v = std::min(v_h,v_iloop);
@@ -161,7 +162,7 @@ class CParty {
 				
 		 	} // end loop j
 		} //end loop i
-		return V(1,n-1);
+		return 0;
 	}
 
 
@@ -262,8 +263,6 @@ main(int argc,char **argv) {
 	detect_restricted_pairs(restricted,p_table,last_j_array,in_pair_array);
 	
 	energy_t partitionEnergy = fold(cparty.seq_,cparty.V_,cparty.S_,cparty.S1_,cparty.params_,cparty.n_,cparty.garbage_collect_, p_table,last_j_array,in_pair_array,up_array);		
-	std::cout << "partition" <<std::endl;
-	std::cout << partitionEnergy <<std::endl;
 
 	if (verbose) {
 		std::cout << "verbose" <<std::endl;
